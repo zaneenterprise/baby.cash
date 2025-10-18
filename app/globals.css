@@ -136,7 +136,7 @@ body {
 
 body.page-fade {
   opacity: 0;
-  transition: opacity 700ms ease 200ms;
+  transition: opacity 1100ms ease 300ms;
 }
 
 body.page-fade.page-fade-ready {

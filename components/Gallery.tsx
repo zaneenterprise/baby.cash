@@ -230,6 +230,8 @@ function GalleryScene({
 	const lastInteraction = useRef(Date.now());
 	const touchStartY = useRef<number | null>(null);
 	const texturesRef = useRef<(THREE.Texture | null)[]>([]);
+	const [initialPriorityIndices, setInitialPriorityIndices] = useState<number[]>([]);
+	const initialReadyDispatched = useRef(false);
 	const [textures, setTextures] = useState<(THREE.Texture | null)[]>([]);
 	const placeholderTexture = useMemo(() => createPlaceholderTexture(), []);
 
@@ -322,8 +324,11 @@ function GalleryScene({
 			prioritizedIndices.add(i);
 		}
 
+		const prioritizedList = Array.from(prioritizedIndices);
+		setInitialPriorityIndices(prioritizedList);
+
 		const queue: number[] = [
-			...prioritizedIndices,
+			...prioritizedList,
 			...normalizedImages
 				.map((_, index) => index)
 				.filter((index) => !prioritizedIndices.has(index)),
@@ -387,6 +392,23 @@ function GalleryScene({
 		},
 		[]
 	);
+
+	useEffect(() => {
+		if (initialReadyDispatched.current) return;
+		if (initialPriorityIndices.length === 0) return;
+
+		const allLoaded = initialPriorityIndices.every((index) => {
+			const texture = texturesRef.current[index];
+			return Boolean(texture);
+		});
+
+		if (allLoaded) {
+			initialReadyDispatched.current = true;
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(new Event('page-ready'));
+			}
+		}
+	}, [initialPriorityIndices, textures]);
 
 	const handleWheel = useCallback(
 		(event: WheelEvent) => {
@@ -676,6 +698,10 @@ export default function Gallery({
 	images,
 	className = 'h-96 w-full',
 	style,
+	speed = 1,
+	zSpacing,
+	visibleCount = 8,
+	falloff,
 	fadeSettings = {
 		fadeIn: { start: 0.05, end: 0.25 },
 		fadeOut: { start: 0.4, end: 0.43 },
@@ -718,6 +744,10 @@ export default function Gallery({
 			>
 				<GalleryScene
 					images={images}
+					speed={speed}
+					zSpacing={zSpacing}
+					visibleCount={visibleCount}
+					falloff={falloff}
 					fadeSettings={fadeSettings}
 					blurSettings={blurSettings}
 				/>
