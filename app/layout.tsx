@@ -17,8 +17,10 @@ const amaticSC = Amatic_SC({
 
 export const metadata: Metadata = {
   title: "Baby Cash",
-  description: "Welcome Baby Cash",
-    generator: 'v0.app'
+  description: "A site for little baby boy Cash (idk what else to put here)",
+  icons: {
+    icon: "/babyico.png",
+  },
 }
 
 export default function RootLayout({
