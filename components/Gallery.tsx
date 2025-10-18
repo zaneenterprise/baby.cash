@@ -3,7 +3,6 @@
 import type React from 'react';
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 
 type ImageItem = string | { src: string; alt?: string };
@@ -67,6 +66,14 @@ interface PlaneData {
 const DEFAULT_DEPTH_RANGE = 50;
 const MAX_HORIZONTAL_OFFSET = 8;
 const MAX_VERTICAL_OFFSET = 8;
+
+const createPlaceholderTexture = () => {
+	const data = new Uint8Array([255, 255, 255, 255]);
+	const texture = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.needsUpdate = true;
+	return texture;
+};
 
 
 const createClothMaterial = () => {
@@ -222,7 +229,16 @@ function GalleryScene({
 	const [autoPlay, setAutoPlay] = useState(true);
 	const lastInteraction = useRef(Date.now());
 	const touchStartY = useRef<number | null>(null);
+	const texturesRef = useRef<(THREE.Texture | null)[]>([]);
+	const [textures, setTextures] = useState<(THREE.Texture | null)[]>([]);
+	const placeholderTexture = useMemo(() => createPlaceholderTexture(), []);
 
+	useEffect(
+		() => () => {
+			placeholderTexture.dispose();
+		},
+		[placeholderTexture]
+	);
 
 	const normalizedImages = useMemo(
 		() =>
@@ -231,10 +247,6 @@ function GalleryScene({
 			),
 		[images]
 	);
-
-
-	const textures = useTexture(normalizedImages.map((img) => img.src));
-
 
 	const materials = useMemo(
 		() => Array.from({ length: visibleCount }, () => createClothMaterial()),
@@ -293,6 +305,88 @@ function GalleryScene({
 		}));
 	}, [depthRange, spatialPositions, totalImages, visibleCount]);
 
+	useEffect(() => {
+		const total = normalizedImages.length;
+
+		texturesRef.current.forEach((texture) => texture?.dispose());
+		const initialTextures = new Array(total).fill(null) as (THREE.Texture | null)[];
+		texturesRef.current = initialTextures;
+		setTextures(initialTextures);
+
+		if (total === 0) {
+			return;
+		}
+
+		const prioritizedIndices = new Set<number>();
+		for (let i = 0; i < Math.min(visibleCount, total); i++) {
+			prioritizedIndices.add(i);
+		}
+
+		const queue: number[] = [
+			...prioritizedIndices,
+			...normalizedImages
+				.map((_, index) => index)
+				.filter((index) => !prioritizedIndices.has(index)),
+		];
+
+		const loader = new THREE.TextureLoader();
+		let cancelled = false;
+
+		const loadNext = () => {
+			if (cancelled) {
+				return;
+			}
+
+			const nextIndex = queue.shift();
+			if (nextIndex === undefined) {
+				return;
+			}
+
+			const image = normalizedImages[nextIndex];
+			if (!image?.src) {
+				loadNext();
+				return;
+			}
+
+			loader.load(
+				image.src,
+				(texture) => {
+					if (cancelled) {
+						texture.dispose();
+						return;
+					}
+
+					texture.colorSpace = THREE.SRGBColorSpace;
+
+					texturesRef.current[nextIndex] = texture;
+					setTextures((prev) => {
+						const updated = [...prev];
+						updated[nextIndex] = texture;
+						return updated;
+					});
+					loadNext();
+				},
+				undefined,
+				() => {
+					loadNext();
+				}
+			);
+		};
+
+		loadNext();
+
+		return () => {
+			cancelled = true;
+			queue.length = 0;
+		};
+	}, [normalizedImages, visibleCount]);
+
+	useEffect(
+		() => () => {
+			texturesRef.current.forEach((texture) => texture?.dispose());
+		},
+		[]
+	);
 
 	const handleWheel = useCallback(
 		(event: WheelEvent) => {
@@ -516,24 +610,29 @@ function GalleryScene({
 	return (
 		<>
 			{planesData.current.map((plane, i) => {
-				const texture = textures[plane.imageIndex];
 				const material = materials[i];
+				if (!material) return null;
 
-				if (!texture || !material) return null;
+				const resolvedTexture =
+					textures[plane.imageIndex] ?? placeholderTexture;
 
 				const worldZ = plane.z - depthRange / 2;
 
 
-				const aspect = texture.image
-					? texture.image.width / texture.image.height
-					: 1;
+				const textureImage = resolvedTexture.image as
+					| { width?: number; height?: number }
+					| undefined;
+				const imageWidth = textureImage?.width ?? 1;
+				const imageHeight = textureImage?.height ?? 1;
+				const aspect =
+					imageHeight !== 0 ? imageWidth / imageHeight : 1;
 				const scale: [number, number, number] =
 					aspect > 1 ? [2 * aspect, 2, 1] : [2, 2 / aspect, 1];
 
 				return (
 					<ImagePlane
 						key={plane.index}
-						texture={texture}
+						texture={resolvedTexture}
 						position={[plane.x, plane.y, worldZ]}
 						scale={scale}
 						material={material}

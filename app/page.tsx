@@ -1,23 +1,24 @@
 import Gallery from "@/components/Gallery"
 
+const babyPics = [
+  { src: "/baby1.webp" },
+  { src: "/baby2.webp" },
+  { src: "/baby3.webp" },
+  { src: "/baby4.webp" },
+  { src: "/baby5.webp" },
+  { src: "/baby6.webp" },
+  { src: "/baby7.webp" },
+  { src: "/baby8.webp" },
+  { src: "/baby9.webp" },
+  { src: "/baby10.webp" },
+  { src: "/baby11.webp" },
+  { src: "/baby12.webp" },
+  { src: "/baby13.webp" },
+  { src: "/baby14.webp" },
+  { src: "/baby15.webp" },
+]
+
 export default function Home() {
-  const babyPics = [
-    { src: "/baby1.webp" },
-    { src: "/baby2.webp" },
-    { src: "/baby3.webp" },
-    { src: "/baby4.webp" },
-    { src: "/baby5.webp" },
-    { src: "/baby6.webp" },
-    { src: "/baby7.webp" },
-    { src: "/baby8.webp" },
-    { src: "/baby9.webp" },
-    { src: "/baby10.webp" },
-    { src: "/baby11.webp" },
-    { src: "/baby12.webp" },
-    { src: "/baby13.webp" },
-    { src: "/baby14.webp" },
-    { src: "/baby15.webp" },
-  ]
 
   return (
     <main className="min-h-screen ">
