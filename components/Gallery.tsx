@@ -229,6 +229,9 @@ function GalleryScene({
 	const [autoPlay, setAutoPlay] = useState(true);
 	const lastInteraction = useRef(Date.now());
 	const touchStartY = useRef<number | null>(null);
+	const [isPageVisible, setIsPageVisible] = useState(true);
+	const autoPlayRef = useRef(autoPlay);
+	const autoPlayRestoreRef = useRef(autoPlay);
 	const texturesRef = useRef<(THREE.Texture | null)[]>([]);
 	const [textures, setTextures] = useState<(THREE.Texture | null)[]>([]);
 	const placeholderTexture = useMemo(() => createPlaceholderTexture(), []);
@@ -239,6 +242,10 @@ function GalleryScene({
 		},
 		[placeholderTexture]
 	);
+
+	useEffect(() => {
+		autoPlayRef.current = autoPlay;
+	}, [autoPlay]);
 
 	const normalizedImages = useMemo(
 		() =>
@@ -388,6 +395,34 @@ function GalleryScene({
 		[]
 	);
 
+	useEffect(() => {
+		if (typeof document === 'undefined') {
+			return;
+		}
+
+		const handleVisibilityChange = () => {
+			const visible = document.visibilityState === 'visible';
+			setIsPageVisible(visible);
+
+			if (!visible) {
+				autoPlayRestoreRef.current = autoPlayRef.current;
+				setAutoPlay(false);
+				setScrollVelocity(0);
+			} else {
+				setScrollVelocity(0);
+				setAutoPlay(autoPlayRestoreRef.current);
+			}
+
+			lastInteraction.current = Date.now();
+		};
+
+		handleVisibilityChange();
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	}, []);
+
 	const handleWheel = useCallback(
 		(event: WheelEvent) => {
 			event.preventDefault();
@@ -471,28 +506,48 @@ function GalleryScene({
 
 	useEffect(() => {
 		const interval = setInterval(() => {
-			if (Date.now() - lastInteraction.current > 1000) {
+			if (
+				isPageVisible &&
+				Date.now() - lastInteraction.current > 1000
+			) {
 				setAutoPlay(true);
 			}
 		}, 1000);
 		return () => clearInterval(interval);
-	}, []);
+	}, [isPageVisible]);
 
 	useFrame((state, delta) => {
-
-		if (autoPlay) {
-			setScrollVelocity((prev) => prev + .7 * delta);
+		if (!isPageVisible) {
+			return;
 		}
 
+		const clampedDelta = Math.min(Math.max(delta, 0), 0.05);
 
-		setScrollVelocity((prev) => prev * 0.95);
+		let nextVelocity = scrollVelocity;
 
+		if (autoPlay) {
+			nextVelocity += 0.7 * clampedDelta;
+		}
+
+		const baseFrame = 1 / 60;
+		const dampingFactor = Math.pow(0.95, clampedDelta / baseFrame);
+		nextVelocity *= dampingFactor;
+
+		if (Math.abs(nextVelocity) < 0.0001) {
+			nextVelocity = 0;
+		}
+
+		if (Math.abs(nextVelocity - scrollVelocity) > 0.00001) {
+			setScrollVelocity(nextVelocity);
+		}
+
+		const effectiveVelocity = nextVelocity;
 
 		const time = state.clock.getElapsedTime();
 		materials.forEach((material) => {
 			if (material && material.uniforms) {
 				material.uniforms.time.value = time;
-				material.uniforms.scrollForce.value = scrollVelocity;
+				material.uniforms.scrollForce.value = effectiveVelocity;
 			}
 		});
 
@@ -503,7 +558,7 @@ function GalleryScene({
 		const halfRange = totalRange / 2;
 
 		planesData.current.forEach((plane, i) => {
-			let newZ = plane.z + scrollVelocity * delta * 10;
+			let newZ = plane.z + effectiveVelocity * clampedDelta * 10;
 			let wrapsForward = 0;
 			let wrapsBackward = 0;
 
