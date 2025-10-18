@@ -133,3 +133,25 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+body.page-fade {
+  opacity: 0;
+  transition: opacity 700ms ease 200ms;
+}
+
+body.page-fade.page-fade-ready {
+  opacity: 0;
+}
+
+body.page-fade.page-fade-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.page-fade,
+  body.page-fade.page-fade-ready,
+  body.page-fade.page-fade-visible {
+    transition: none;
+    opacity: 1;
+  }
+}

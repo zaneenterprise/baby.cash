@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist_Mono, Amatic_SC } from "next/font/google"
 import "./globals.css"
+import BodyFade from "@/components/BodyFade"
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -27,7 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistMono.variable} ${amaticSC.variable} antialiased`}>{children}</body>
+      <body className={`${geistMono.variable} ${amaticSC.variable} antialiased page-fade`}>
+        <noscript>
+          <style>{`body.page-fade { opacity: 1 !important; }`}</style>
+        </noscript>
+        <BodyFade>{children}</BodyFade>
+      </body>
     </html>
   )
 }
