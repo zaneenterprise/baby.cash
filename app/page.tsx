@@ -17,16 +17,6 @@ export default function Home() {
     { src: "/baby13.webp" },
     { src: "/baby14.webp" },
     { src: "/baby15.webp" },
-    { src: "/baby16.webp" },
-    { src: "/baby17.webp" },
-    { src: "/baby18.webp" },
-    { src: "/baby19.webp" },
-    { src: "/baby20.webp" },
-    { src: "/baby21.webp" },
-    { src: "/baby22.webp" },
-    { src: "/baby23.webp" },
-    { src: "/baby24.webp" },
-    { src: "/baby25.webp" },
   ]
 
   return (
