@@ -228,12 +228,21 @@ function GalleryScene({
 	const [scrollVelocity, setScrollVelocity] = useState(0);
 	const [autoPlay, setAutoPlay] = useState(true);
 	const lastInteraction = useRef(Date.now());
+	const autoPlaySnapshotRef = useRef(autoPlay);
+	const skipNextFrameRef = useRef(false);
 	const touchStartY = useRef<number | null>(null);
 	const texturesRef = useRef<(THREE.Texture | null)[]>([]);
 	const [initialPriorityIndices, setInitialPriorityIndices] = useState<number[]>([]);
 	const initialReadyDispatched = useRef(false);
 	const [textures, setTextures] = useState<(THREE.Texture | null)[]>([]);
 	const placeholderTexture = useMemo(() => createPlaceholderTexture(), []);
+
+	useEffect(() => {
+		if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+			return;
+		}
+		autoPlaySnapshotRef.current = autoPlay;
+	}, [autoPlay]);
 
 	useEffect(
 		() => () => {
@@ -493,6 +502,13 @@ function GalleryScene({
 
 	useEffect(() => {
 		const interval = setInterval(() => {
+			if (
+				typeof document !== 'undefined' &&
+				document.visibilityState === 'hidden'
+			) {
+				return;
+			}
+
 			if (Date.now() - lastInteraction.current > 1000) {
 				setAutoPlay(true);
 			}
@@ -500,7 +516,35 @@ function GalleryScene({
 		return () => clearInterval(interval);
 	}, []);
 
+	useEffect(() => {
+		if (typeof document === 'undefined') {
+			return;
+		}
+
+		const handleVisibilityChange = () => {
+			lastInteraction.current = Date.now();
+
+			if (document.visibilityState === 'hidden') {
+				autoPlaySnapshotRef.current = autoPlay;
+				setAutoPlay(false);
+				setScrollVelocity(0);
+			} else {
+				setAutoPlay(autoPlaySnapshotRef.current);
+				skipNextFrameRef.current = true;
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	}, [autoPlay]);
+
 	useFrame((state, delta) => {
+		if (skipNextFrameRef.current) {
+			skipNextFrameRef.current = false;
+			return;
+		}
 
 		if (autoPlay) {
 			setScrollVelocity((prev) => prev + .7 * delta);
